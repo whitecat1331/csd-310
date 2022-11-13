@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="13.3">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>150</x>
+      <y>160</y>
+      <w>260</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>_object: Book_
+--
+_id: long
+title: String
+pages: int
+copies_sold: int
+date_published: Date
+authors[]: Object
+publishers[]: Object</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>670</x>
+      <y>160</y>
+      <w>290</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>_object: Author_
+--
+_id: long
+first_name: String
+last_name: String
+books_written[]: Object
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>400</x>
+      <y>190</y>
+      <w>290</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1.*
+m2=1.*
+</panel_attributes>
+    <additional_attributes>10.0;20.0;270.0;20.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>140</x>
+      <y>510</y>
+      <w>260</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>_object: Publisher_
+--
+_id: long
+name: String
+address: String
+city: String
+state: String
+books_published[]: Object</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>250</x>
+      <y>340</y>
+      <w>50</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1.*
+m2=1.*
+</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;170.0</additional_attributes>
+  </element>
+</diagram>

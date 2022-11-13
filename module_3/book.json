@@ -1,0 +1,13 @@
+{
+  "_id": ObjectId("AAAA"),
+  "title": "The Fault In Our Stars",
+  "pages": 313,
+  "copies_sold": 145678,
+  "date_published": Date("01-10-2012"),
+  "authors": [
+         ObjectId("XAEF"),
+  ],
+  "publishers": [
+         ObjectId("FFFF"),
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "_id": Object("DDDD"),
+  "first_name": "Jane",
+  "last_name": "Doe",
+  "age": 25,
+  "courses_tought": [
+    ObjectId("CCCC"),
+  ]
+}

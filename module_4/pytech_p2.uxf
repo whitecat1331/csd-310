@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="13.3">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>40</x>
+      <y>320</y>
+      <w>210</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>_object: Student_
+--
+student_id: long
+first_name: String
+last_name: String
+enrollments[]: Object
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>560</x>
+      <y>320</y>
+      <w>210</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>_object: Enrollment_
+--
+_id: long
+term: String
+gpa: double
+start_date: Date
+end_date: Date
+courses[]: Object</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1080</x>
+      <y>320</y>
+      <w>210</w>
+      <h>140</h>
+    </coordinates>
+    <panel_attributes>_object: Course_
+--
+course_id: long
+description: String
+instructors[]: Object
+grade: double
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1080</x>
+      <y>600</y>
+      <w>210</w>
+      <h>160</h>
+    </coordinates>
+    <panel_attributes>_object: Instructor_
+--
+_id: long
+first_name: String
+last_name: String
+age: int
+courses_tought[]: Object</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>240</x>
+      <y>320</y>
+      <w>340</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1.1
+m2=1.*
+</panel_attributes>
+    <additional_attributes>10.0;20.0;320.0;20.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>760</x>
+      <y>320</y>
+      <w>340</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1.1
+m2=1.*
+</panel_attributes>
+    <additional_attributes>10.0;20.0;320.0;20.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1180</x>
+      <y>450</y>
+      <w>50</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1.*
+m2=1.*</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;150.0</additional_attributes>
+  </element>
+</diagram>

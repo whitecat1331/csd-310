@@ -1,0 +1,10 @@
+{
+  "_id": ObjectId("FFFF")
+    "name": "Penguin Books",
+  "address": "1234 Random Street",
+  "city": "New York",
+  "state": "New York",
+  "books_published": [
+         ObjectId("AAAA"),
+  ]
+}

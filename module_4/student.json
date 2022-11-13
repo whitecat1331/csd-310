@@ -1,0 +1,8 @@
+{
+  "student_id": "AAAA",
+  "first_name": "John",
+  "last_name": "Smith",
+  "enrollments": [
+    ObjectId("BBBB"),
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "course_id": ObjectId("CCCC"),
+  "description": "Intro to database seurity",
+  "instructors": [
+    ObjectId("DDDD"),
+  ],
+  "grade": 97.85
+}

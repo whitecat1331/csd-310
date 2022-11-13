@@ -1,0 +1,7 @@
+{
+  "_id": ObjectId("XAEF"),
+  "first_name": "John",
+  "last_name": "Green""books_written": [
+         ObjectId("AAAA"),
+  ]
+}
