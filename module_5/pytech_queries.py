@@ -1,9 +1,9 @@
 from pymongo import MongoClient
 
 
-class Student():
+class Student:
     id = ""
-    url = "mongodb+srv://admin:admin@cluster0.jia3bcs.mongodb.net/test"
+    url = "mongodb+srv://admin:admin@cluster0.jia3bcs.mongodb.net/pytech"
     client = MongoClient(url)
     db = client.pytech
     students = db.students
@@ -12,7 +12,7 @@ class Student():
     def __init__(self, student_id, first_name, last_name):
         self.student_id = student_id
         self.first_name = first_name
-        self.last_name = last_name   
+        self.last_name = last_name
 
     @classmethod
     def find(cls):
@@ -30,10 +30,10 @@ class Student():
 
     def to_dict(self):
         return {
-            "student_id": self.student_id, 
-            "first_name": self.first_name, 
-            "last_name": self.last_name
-            }
+            "student_id": self.student_id,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+        }
 
     def insert(self):
         self.id = self.students.insert_one(self.to_dict()).inserted_id
@@ -42,8 +42,3 @@ class Student():
 
 print(Student.find())
 print(Student.find_one("1007"))
-
-
-
-
-
