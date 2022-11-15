@@ -53,7 +53,7 @@ class StudentAPI:
 
     @classmethod
     def find_one(cls, student_id):
-        results = f" -- DISPLAYING STUDENTS DOCUMENTS FROM find() QUERY --\n"
+        results = f" -- DISPLAYING STUDENT DOCUMENT {student_id} --\n"
         student = cls.connection.students.find_one({"student_id": student_id})
         results += f"Student ID: {student['student_id']}\nFirst Name: {student['first_name']}\nLast Name: {student['last_name']}\n"
         return results
@@ -69,6 +69,13 @@ class StudentAPI:
         self.id = self.connection.students.insert_one(self.to_dict()).inserted_id
         return f"Inserted student record {self.first_name} {self.last_name} into the {self.connection.collection_name} collection with document_id {self.id}"
 
+    @classmethod
+    def update_one(cls, student_id, property, value):
+        cls.connection.students.update_one(
+            {"student_id": student_id}, {"$set": {property: value}}
+        )
+
 
 print(StudentAPI.find())
+StudentAPI.update_one("1007", "last_name", "Odinson")
 print(StudentAPI.find_one("1007"))
