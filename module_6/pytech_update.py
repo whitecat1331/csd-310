@@ -2,6 +2,14 @@ from pymongo import MongoClient
 from os import getenv
 
 
+class EnvironmentNotFound(Exception):
+    pass
+
+
+class StudentConnectionError(Exception):
+    pass
+
+
 class StudentConnection:
     def __init__(self, url, username, password):
         self.url = url.format(username=username, password=password)
@@ -11,10 +19,25 @@ class StudentConnection:
         self.collection_name = self.db.list_collection_names()[0]
 
 
-class StudentAPI():
+class StudentAPI:
     id = ""
     # username and password environment variables must be set for connection to work
-    connection = StudentConnection("mongodb+srv://{username}:{password}@cluster0.jia3bcs.mongodb.net/test", getenv("MONGODB_USERNAME"), getenv("MONGODB_PASSWORD"))
+    SCHEMA = "mongodb+srv://{username}:{password}@"
+    CONNECTION_PATH = getenv("MONGODB_COLLECTION_PATH")
+    USERNAME = getenv("MONGODB_USERNAME")
+    PASSWORD = getenv("MONGODB_PASSWORD")
+    if not (USERNAME or PASSWORD or CONNECTION_PATH):
+        raise EnvironmentNotFound(
+            "Environment variables MONGODB_USERNAME, MONGODB_PASSWORD, and MONGODB_COLLECTION_PATH must be set"
+        )
+
+    URL = SCHEMA + str(CONNECTION_PATH)
+
+    try:
+        connection = StudentConnection(URL, USERNAME, PASSWORD)
+
+    except Exception as e:
+        raise StudentConnectionError("Error connecting to the MongoDB API")
 
     def __init__(self, student_id, first_name, last_name):
         self.student_id = student_id
