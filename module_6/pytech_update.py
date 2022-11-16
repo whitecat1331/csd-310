@@ -1,16 +1,59 @@
+from configparser import ConfigParser
 from pymongo import MongoClient
-from os import getenv
-
-
-class EnvironmentNotFound(Exception):
-    pass
+import os
 
 
 class StudentConnectionError(Exception):
-    pass
+    def __init__(self, message="Error connecting to the MongoDB API"):
+        super().__init__(message)
 
 
-class StudentConnection:
+class ConfigurationLoadError(Exception):
+    def __init__(self, message="Error Loading Configuration File"):
+        super().__init__(message)
+
+
+class ConfigurationSetupError(Exception):
+    def __init__(self, message="Error Setting Up Configuration File"):
+        super().__init__(message)
+
+
+class MongoConfiguration:
+    PATH = "MONGODB_COLLECTION_PATH"
+    USERNAME = "MONGODB_USERNAME"
+    PASSWORD = "MONGODB_PASSWORD"
+    DIRECTORY = "config"
+    SECTION = "CONNECTION"
+
+    @classmethod
+    def create_config(cls, config_path):
+        print("Enter the variables to set configuration")
+        collection_path = input("Collection Path: ")
+        username = input("Username: ")
+        password = input("Password: ")
+
+        config = ConfigParser()
+        config[cls.SECTION] = {
+                cls.PATH: collection_path,
+                cls.USERNAME: username,
+                cls.PASSWORD: password
+                }
+
+        if not os.path.isdir(cls.DIRECTORY):
+            os.mkdir(cls.DIRECTORY)
+
+        with open(config_path, 'w') as config_file:
+            config.write(config_file)
+
+    @classmethod
+    def load_config(cls, config_path):
+        config = ConfigParser()
+        config.read(config_path)
+        return config[cls.SECTION]
+
+
+class MongoConnection:
+
     def __init__(self, url, username, password):
         self.url = url.format(username=username, password=password)
         self.client = MongoClient(self.url)
@@ -21,23 +64,31 @@ class StudentConnection:
 
 class StudentAPI:
     id = ""
-    # username and password environment variables must be set for connection to work
+    config_path = "config/mongodb_connection.ini"
     SCHEMA = "mongodb+srv://{username}:{password}@"
-    CONNECTION_PATH = getenv("MONGODB_COLLECTION_PATH")
-    USERNAME = getenv("MONGODB_USERNAME")
-    PASSWORD = getenv("MONGODB_PASSWORD")
-    if not (USERNAME or PASSWORD or CONNECTION_PATH):
-        raise EnvironmentNotFound(
-            "Environment variables MONGODB_USERNAME, MONGODB_PASSWORD, and MONGODB_COLLECTION_PATH must be set"
-        )
 
-    URL = SCHEMA + str(CONNECTION_PATH)
+    # username and password environment variables must be set for connection to work
+    try:
+        if not os.path.exists(config_path):
+            MongoConfiguration.create_config(config_path)
+    except Exception as e:
+        raise ConfigurationSetupError
 
     try:
-        connection = StudentConnection(URL, USERNAME, PASSWORD)
+        CONNECTION_CONFIG = MongoConfiguration.load_config(config_path)
+        CONNECTION_PATH = CONNECTION_CONFIG[MongoConfiguration.PATH]
+        USERNAME = CONNECTION_CONFIG[MongoConfiguration.USERNAME]
+        PASSWORD = CONNECTION_CONFIG[MongoConfiguration.PASSWORD]
+        URL = SCHEMA + str(CONNECTION_PATH)
 
     except Exception as e:
-        raise StudentConnectionError("Error connecting to the MongoDB API")
+        raise ConfigurationLoadError
+
+    try:
+        connection = MongoConnection(URL, USERNAME, PASSWORD)
+
+    except Exception as e:
+        raise StudentConnectionError
 
     def __init__(self, student_id, first_name, last_name):
         self.student_id = student_id
@@ -77,5 +128,5 @@ class StudentAPI:
 
 
 print(StudentAPI.find())
-StudentAPI.update_one("1007", "last_name", "Odinson")
+# StudentAPI.update_one("1007", "last_name", "Odinson")
 print(StudentAPI.find_one("1007"))
