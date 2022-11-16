@@ -2,8 +2,7 @@ from configparser import ConfigParser
 from pymongo import MongoClient
 import os
 
-
-class StudentConnectionError(Exception):
+class MongoConnectionError(Exception):
     def __init__(self, message="Error connecting to the MongoDB API"):
         super().__init__(message)
 
@@ -15,6 +14,11 @@ class ConfigurationLoadError(Exception):
 
 class ConfigurationSetupError(Exception):
     def __init__(self, message="Error Setting Up Configuration File"):
+        super().__init__(message)
+
+
+class DocumentNotFoundError(Exception):
+    def __init__(self, message="Error locating document(s)"):
         super().__init__(message)
 
 
@@ -54,28 +58,28 @@ class MongoConfiguration:
 
 class MongoConnection:
 
-    def __init__(self, url, username, password):
+    def __init__(self, url, database, collection, username, password):
         self.url = url.format(username=username, password=password)
         self.client = MongoClient(self.url)
-        self.db = self.client.pytech
-        self.students = self.db.students
+        self.db = self.client[database]
+        self.collection = self.db[collection]
         self.collection_name = self.db.list_collection_names()[0]
 
 
-class StudentAPI:
-    id = ""
-    config_path = "config/mongodb_connection.ini"
+class MongoAPI(MongoConnection):
     SCHEMA = "mongodb+srv://{username}:{password}@"
+    CONFIG_PATH = "config/mongodb_connection.ini"
 
-    # username and password environment variables must be set for connection to work
+    # create config file if not exists
     try:
-        if not os.path.exists(config_path):
-            MongoConfiguration.create_config(config_path)
+        if not os.path.exists(CONFIG_PATH):
+            MongoConfiguration.create_config(CONFIG_PATH)
     except Exception as e:
         raise ConfigurationSetupError
 
+    # load configuration file
     try:
-        CONNECTION_CONFIG = MongoConfiguration.load_config(config_path)
+        CONNECTION_CONFIG = MongoConfiguration.load_config(CONFIG_PATH)
         CONNECTION_PATH = CONNECTION_CONFIG[MongoConfiguration.PATH]
         USERNAME = CONNECTION_CONFIG[MongoConfiguration.USERNAME]
         PASSWORD = CONNECTION_CONFIG[MongoConfiguration.PASSWORD]
@@ -84,49 +88,85 @@ class StudentAPI:
     except Exception as e:
         raise ConfigurationLoadError
 
-    try:
-        connection = MongoConnection(URL, USERNAME, PASSWORD)
+    def __init__(self, database, collection):
+        try:
+            super().__init__(self.URL, database, collection, self.USERNAME, self.PASSWORD)
+        except Exception as e:
+            raise MongoConnectionError
 
-    except Exception as e:
-        raise StudentConnectionError
+    # override
+    # return an dictionary of the objects that are found
+    def find(self):
+        collection = self.collection.find({})
+        if not collection:
+            raise DocumentNotFoundError
+        return collection
+
+    # override
+    def find_one(self, primary_key, key_value):
+        document = self.collection.find_one({primary_key: key_value})
+        if not document:
+            raise DocumentNotFoundError
+        return document
+
+    # override
+    def insert(self, document):
+        return self.collection.insert_one(document).inserted_id
+
+    # override
+    def update_one(self, primary_key, key_value, new_property, new_value):
+        self.collection.update_one(
+            {primary_key: key_value}, {"$set": {new_property: new_value}}
+        )
+
+
+class StudentDocument:
 
     def __init__(self, student_id, first_name, last_name):
-        self.student_id = student_id
+        self._id = student_id
         self.first_name = first_name
         self.last_name = last_name
 
-    @classmethod
-    def find(cls):
-        results = f" -- DISPLAYING STUDENTS DOCUMENTS FROM find() QUERY --\n"
-        for student in cls.connection.students.find({}):
-            results += f"Student ID: {student['student_id']}\nFirst Name: {student['first_name']}\nLast Name: {student['last_name']}\n\n"
-        return results
-
-    @classmethod
-    def find_one(cls, student_id):
-        results = f" -- DISPLAYING STUDENT DOCUMENT {student_id} --\n"
-        student = cls.connection.students.find_one({"student_id": student_id})
-        results += f"Student ID: {student['student_id']}\nFirst Name: {student['first_name']}\nLast Name: {student['last_name']}\n"
-        return results
-
     def to_dict(self):
         return {
-            "student_id": self.student_id,
+            "student_id": self._id,
             "first_name": self.first_name,
             "last_name": self.last_name,
         }
 
-    def insert(self):
-        self.id = self.connection.students.insert_one(self.to_dict()).inserted_id
-        return f"Inserted student record {self.first_name} {self.last_name} into the {self.connection.collection_name} collection with document_id {self.id}"
 
-    @classmethod
-    def update_one(cls, student_id, property, value):
-        cls.connection.students.update_one(
-            {"student_id": student_id}, {"$set": {property: value}}
-        )
+class StudentCollection(MongoAPI):
+    DATABASE = "pytech"
+    COLLECTION = "students"
+
+    def __init__(self):
+        super().__init__(self.DATABASE, self.COLLECTION)
+
+    id = ""
+
+    def find(self):
+        students = super().find()
+        results = " -- DISPLAYING STUDENTS DOCUMENTS FROM find() QUERY --\n"
+        for student in students:
+            results += f"Student ID: {student['student_id']}\nFirst Name: {student['first_name']}\nLast Name: {student['last_name']}\n\n"
+        return results
+
+    def find_one(self, student_id):
+        student = super().find_one("student_id", student_id)
+        results = f" -- DISPLAYING STUDENT DOCUMENT {student_id} --\n"
+        results += f"Student ID: {student['student_id']}\nFirst Name: {student['first_name']}\nLast Name: {student['last_name']}\n"
+        return results
+
+    # adapt to inheritance
+    def insert(self, StudentDocument):
+        document_id = super().insert(StudentDocument.to_dict())
+        return f"Inserted student record {StudentDocument._id} {StudentDocument.last_name} into the {self.collection_name} collection with document_id {document_id}"
+
+    def update_one(self, key_value, property, value):
+        super().update_one("student_id", key_value, property, value)
 
 
-print(StudentAPI.find())
-# StudentAPI.update_one("1007", "last_name", "Odinson")
-print(StudentAPI.find_one("1007"))
+student_collection = StudentCollection()
+print(student_collection.find())
+student_collection.update_one("1007", "last_name", "Smith")
+print(student_collection.find_one("1007"))
