@@ -1,6 +1,4 @@
-import os
-from pydantic import BaseSettings   
-from configparser import ConfigParser
+from pydantic import BaseSettings
 from pymongo import MongoClient
 
 REQUIRED_SETTINGS = ["STUDENT_COLLECTION_URL", "USERNAME", "PASSWORD"]
@@ -32,10 +30,6 @@ try:
     CONNECTION_SETTINGS = MongoEnvironment().dict()
 except Exception as e:
     raise MongoEnvoronmentError
-
-
-
-
 
 
 """
@@ -99,7 +93,6 @@ class MongoConnection():
         self.client = MongoClient(self.url)
         self.db = self.client[database]
         self.collection = self.db[collection]
-        self.collection_name = self.db.list_collection_names()[0]
 
 
 class MongoAPI(MongoConnection):
