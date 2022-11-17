@@ -3,11 +3,42 @@ from pydantic import BaseSettings
 from configparser import ConfigParser
 from pymongo import MongoClient
 
+REQUIRED_SETTINGS = ["STUDENT_COLLECTION_URL", "USERNAME", "PASSWORD"]
+
+
+class MongoEnvironment(BaseSettings):
+    student_collection_url: str
+    username: str
+    password: str
+
+    class Config:
+        env_file = ".env"
+
+
+class MongoEnvoronmentError(Exception):
+    def __init__(self, message="Set Environment Variables: "):
+        self.message = message
+        settings = ', '.join(str(setting) for setting in REQUIRED_SETTINGS)
+        self.message = message + settings
+        super().__init__(self.message)
+
+
 class MongoConnectionError(Exception):
     def __init__(self, message="Error connecting to the MongoDB API"):
         super().__init__(message)
 
 
+try:
+    CONNECTION_SETTINGS = MongoEnvironment().dict()
+except Exception as e:
+    raise MongoEnvoronmentError
+
+
+
+
+
+
+"""
 class ConfigurationLoadError(Exception):
     def __init__(self, message="Error Loading Configuration File"):
         super().__init__(message)
@@ -16,21 +47,12 @@ class ConfigurationLoadError(Exception):
 class ConfigurationSetupError(Exception):
     def __init__(self, message="Error Setting Up Configuration File"):
         super().__init__(message)
+"""
 
 
 class DocumentNotFoundError(Exception):
     def __init__(self, message="Error locating document(s)"):
         super().__init__(message)
-
-
-# use environment variables for connection
-class MongoEnvironment(BaseSettings):
-    student_collection_url: str
-    username: str
-    password: str
-
-    class Config:
-        env_file = ".env"
 
 
 # might implement later with different configuration
@@ -82,7 +104,6 @@ class MongoConnection():
 
 class MongoAPI(MongoConnection):
     CONFIG_PATH = "config/mongodb_connection.ini"
-    SETTINGS = MongoEnvironment().dict()
 
     def __init__(self, url, database, collection):
         try:
@@ -134,9 +155,9 @@ class StudentDocument:
 class StudentCollection(MongoAPI):
     DATABASE = "pytech"
     COLLECTION = "students"
-    URL = MongoAPI.SETTINGS['student_collection_url']
-    URL = URL.replace("username", MongoAPI.SETTINGS['username'])
-    URL = URL.replace("<password>", MongoAPI.SETTINGS['password'])
+    URL = CONNECTION_SETTINGS['student_collection_url']
+    URL = URL.replace("username", CONNECTION_SETTINGS['username'])
+    URL = URL.replace("<password>", CONNECTION_SETTINGS['password'])
 
     def __init__(self):
         super().__init__(self.URL, self.DATABASE, self.COLLECTION)
