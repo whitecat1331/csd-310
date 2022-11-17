@@ -1,6 +1,7 @@
+import os
+from pydantic import BaseSettings   
 from configparser import ConfigParser
 from pymongo import MongoClient
-import os
 
 class MongoConnectionError(Exception):
     def __init__(self, message="Error connecting to the MongoDB API"):
@@ -22,11 +23,23 @@ class DocumentNotFoundError(Exception):
         super().__init__(message)
 
 
+# use environment variables for connection
+class MongoEnvironment(BaseSettings):
+    student_collection_url: str
+    username: str
+    password: str
+
+    class Config:
+        env_file = ".env"
+
+
+# might implement later with different configuration
+"""
 class MongoConfiguration:
     PATH = "MONGODB_COLLECTION_PATH"
     USERNAME = "MONGODB_USERNAME"
     PASSWORD = "MONGODB_PASSWORD"
-    DIRECTORY = "config"
+    DIRECTORY = ".env"
     SECTION = "CONNECTION"
 
     @classmethod
@@ -54,12 +67,13 @@ class MongoConfiguration:
         config = ConfigParser()
         config.read(config_path)
         return config[cls.SECTION]
+"""
 
 
-class MongoConnection:
+class MongoConnection():
 
-    def __init__(self, url, database, collection, username, password):
-        self.url = url.format(username=username, password=password)
+    def __init__(self, url, database, collection):
+        self.url = url
         self.client = MongoClient(self.url)
         self.db = self.client[database]
         self.collection = self.db[collection]
@@ -67,30 +81,12 @@ class MongoConnection:
 
 
 class MongoAPI(MongoConnection):
-    SCHEMA = "mongodb+srv://{username}:{password}@"
     CONFIG_PATH = "config/mongodb_connection.ini"
+    SETTINGS = MongoEnvironment().dict()
 
-    # create config file if not exists
-    try:
-        if not os.path.exists(CONFIG_PATH):
-            MongoConfiguration.create_config(CONFIG_PATH)
-    except Exception as e:
-        raise ConfigurationSetupError
-
-    # load configuration file
-    try:
-        CONNECTION_CONFIG = MongoConfiguration.load_config(CONFIG_PATH)
-        CONNECTION_PATH = CONNECTION_CONFIG[MongoConfiguration.PATH]
-        USERNAME = CONNECTION_CONFIG[MongoConfiguration.USERNAME]
-        PASSWORD = CONNECTION_CONFIG[MongoConfiguration.PASSWORD]
-        URL = SCHEMA + str(CONNECTION_PATH)
-
-    except Exception as e:
-        raise ConfigurationLoadError
-
-    def __init__(self, database, collection):
+    def __init__(self, url, database, collection):
         try:
-            super().__init__(self.URL, database, collection, self.USERNAME, self.PASSWORD)
+            super().__init__(url, database, collection)
         except Exception as e:
             raise MongoConnectionError
 
@@ -138,9 +134,12 @@ class StudentDocument:
 class StudentCollection(MongoAPI):
     DATABASE = "pytech"
     COLLECTION = "students"
+    URL = MongoAPI.SETTINGS['student_collection_url']
+    URL = URL.replace("username", MongoAPI.SETTINGS['username'])
+    URL = URL.replace("<password>", MongoAPI.SETTINGS['password'])
 
     def __init__(self):
-        super().__init__(self.DATABASE, self.COLLECTION)
+        super().__init__(self.URL, self.DATABASE, self.COLLECTION)
 
     id = ""
 
@@ -168,5 +167,5 @@ class StudentCollection(MongoAPI):
 
 student_collection = StudentCollection()
 print(student_collection.find())
-student_collection.update_one("1007", "last_name", "Smith")
+student_collection.update_one("1007", "last_name", "Odinson")
 print(student_collection.find_one("1007"))
