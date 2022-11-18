@@ -93,7 +93,7 @@ class MongoConnection():
         self.client = MongoClient(self.url)
         self.db = self.client[database]
         self.collection = self.db[collection]
-        self.collection_name = self.collection.name
+        self.name = self.collection.name
 
 
 class MongoAPI(MongoConnection):
@@ -121,7 +121,7 @@ class MongoAPI(MongoConnection):
         return document
 
     # override
-    def insert(self, document):
+    def insert_one(self, document):
         return self.collection.insert_one(document).inserted_id
 
     # override
@@ -150,6 +150,36 @@ class StudentDocument:
         }
 
 
+class MongoFormat:
+
+    @staticmethod
+    def format_find(collection, cursor):
+        format = f" -- DISPLAYING {collection.name.upper()} DOCUMENTS FROM find() QUERY --\n"
+        for document in cursor:
+            format += MongoFormat.format_document(document)
+        print(format)
+
+    @staticmethod
+    def format_document(document):
+        format = ""
+        for key, value in document.items():
+            format += f"{key}: {value}\n" if key != "_id" else ""
+        format += '\n'
+        return format
+
+    @staticmethod
+    def format_find_one(collection, document):
+        format = f"-- Displaying {collection.name.upper()} Document --\n"
+        format += MongoFormat.format_document(document)
+        print(format)
+
+    @staticmethod
+    def format_insert_one(collection, document_id):
+        format = "-- INSERT STATEMENTS --\n"
+        format += f"Inserted document into {collection.name.upper()} collection with document id {document_id}\n"
+        print(format)
+
+
 class StudentCollection(MongoAPI):
     DATABASE = "pytech"
     COLLECTION = "students"
@@ -164,21 +194,17 @@ class StudentCollection(MongoAPI):
 
     def find(self):
         students = super().find()
-        results = " -- DISPLAYING STUDENTS DOCUMENTS FROM find() QUERY --\n"
-        for student in students:
-            results += f"Student ID: {student['student_id']}\nFirst Name: {student['first_name']}\nLast Name: {student['last_name']}\n\n"
-        return results
+        MongoFormat.format_find(self, students)
 
     def find_one(self, student_id):
         student = super().find_one("student_id", student_id)
-        results = f" -- DISPLAYING STUDENT DOCUMENT {student_id} --\n"
-        results += f"Student ID: {student['student_id']}\nFirst Name: {student['first_name']}\nLast Name: {student['last_name']}\n"
-        return results
+        MongoFormat.format_find_one(self, student)
 
     # adapt to inheritance
-    def insert(self, StudentDocument):
-        document_id = super().insert(StudentDocument.to_dict())
-        return f"Inserted student record {StudentDocument._id} {StudentDocument.last_name} into the {self.collection_name} collection with document_id {document_id}"
+    def insert_one(self, StudentDocument):
+        document_id = super().insert_one(StudentDocument.to_dict())
+        document = super().find_one("_id", document_id)
+        MongoFormat.format_insert_one(self, document)
 
     def update_one(self, key_value, property, value):
         super().update_one("student_id", key_value, property, value)
@@ -191,16 +217,16 @@ student_collection = StudentCollection()
 loki = StudentDocument("1010", "Many", "Laufeyson")
 
 # Call the find() method and display the results to the terminal window.
-print(student_collection.find())
+student_collection.find()
 
 # Call the insert_one() method and Insert a new document into the pytech collection with student_id 1010.
-print(student_collection.insert(loki))
+student_collection.insert_one(loki)
 
 # Call the find_one() method and display the results to the terminal window.
-print(student_collection.find_one(loki._id))
+student_collection.find_one(loki._id)
 
 # Call the delete_one() method by student_id 1010.
 student_collection.delete_one(loki._id)
 
 # Call the find() method and display the results to the terminal window.
-print(student_collection.find())
+student_collection.find()
