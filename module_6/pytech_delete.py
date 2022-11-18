@@ -98,6 +98,7 @@ class MongoConnection():
 
 class MongoAPI(MongoConnection):
     CONFIG_PATH = "config/mongodb_connection.ini"
+    DATABASE = "pytech"
 
     def __init__(self, url, database, collection):
         try:
@@ -181,7 +182,6 @@ class MongoFormat:
 
 
 class StudentCollection(MongoAPI):
-    DATABASE = "pytech"
     COLLECTION = "students"
     URL = CONNECTION_SETTINGS['student_collection_url']
     URL = URL.replace("username", CONNECTION_SETTINGS['username'])
