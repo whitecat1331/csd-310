@@ -52,7 +52,7 @@ class DocumentNotFoundError(Exception):
 # might implement later with different configuration
 """
 class MongoConfiguration:
-    PATH = "MONGODB_COLLECTION_PATH"
+    CONFIG_PATH = "config/mongodb_connection.ini"
     USERNAME = "MONGODB_USERNAME"
     PASSWORD = "MONGODB_PASSWORD"
     DIRECTORY = ".env"
@@ -97,7 +97,6 @@ class MongoConnection():
 
 
 class MongoAPI(MongoConnection):
-    CONFIG_PATH = "config/mongodb_connection.ini"
     DATABASE = "pytech"
 
     def __init__(self, url, database, collection):
@@ -139,13 +138,13 @@ class MongoAPI(MongoConnection):
 class StudentDocument:
 
     def __init__(self, student_id, first_name, last_name):
-        self._id = student_id
+        self.id = student_id
         self.first_name = first_name
         self.last_name = last_name
 
     def to_dict(self):
         return {
-            "student_id": self._id,
+            "student_id": self.id,
             "first_name": self.first_name,
             "last_name": self.last_name,
         }
@@ -169,13 +168,13 @@ class MongoFormat:
         return format
 
     @staticmethod
-    def format_find_one(collection, document):
+    def print_find_one(collection, document):
         format = f"-- Displaying {collection.name.upper()} Document --\n"
         format += MongoFormat.format_document(document)
         print(format)
 
     @staticmethod
-    def format_insert_one(collection, document_id):
+    def print_insert_one(collection, document_id):
         format = "-- INSERT STATEMENTS --\n"
         format += f"Inserted document into {collection.name.upper()} collection with document id {document_id}\n"
         print(format)
@@ -196,21 +195,21 @@ class StudentCollection(MongoAPI):
         students = super().find()
         MongoFormat.format_find(self, students)
 
-    def find_one(self, student_id):
-        student = super().find_one("student_id", student_id)
-        MongoFormat.format_find_one(self, student)
+    def find_one(self, student):
+        student = super().find_one("student_id", student.id)
+        MongoFormat.print_find_one(self, student)
 
     # adapt to inheritance
-    def insert_one(self, StudentDocument):
-        document_id = super().insert_one(StudentDocument.to_dict())
+    def insert_one(self, student):
+        document_id = super().insert_one(student.to_dict())
         document = super().find_one("_id", document_id)
-        MongoFormat.format_insert_one(self, document)
+        MongoFormat.print_insert_one(self, document)
 
     def update_one(self, key_value, property, value):
         super().update_one("student_id", key_value, property, value)
 
-    def delete_one(self, student_id):
-        super().delete_one("student_id", student_id)
+    def delete_one(self, student):
+        super().delete_one("student_id", student.id)
 
 
 student_collection = StudentCollection()
@@ -223,10 +222,10 @@ student_collection.find()
 student_collection.insert_one(loki)
 
 # Call the find_one() method and display the results to the terminal window.
-student_collection.find_one(loki._id)
+student_collection.find_one(loki)
 
 # Call the delete_one() method by student_id 1010.
-student_collection.delete_one(loki._id)
+student_collection.delete_one(loki)
 
 # Call the find() method and display the results to the terminal window.
 student_collection.find()
