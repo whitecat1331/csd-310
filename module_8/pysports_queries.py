@@ -1,5 +1,6 @@
 import mysql.connector
 import os
+import pydantic
 from pydantic import BaseSettings
 from configparser import ConfigParser
 from mysql.connector import errorcode
@@ -11,7 +12,15 @@ from mysql.connector import errorcode
     Description: Test program for executing queries against the pysports database. 
 """
 
-""" import statements """
+
+class EnviromentNotSetError(Exception):
+    def __init__(self, message="Environment variables not set"):
+        super().__init__(message)
+
+
+class ConfigNotSetError(Exception):
+    def __init__(self, message="Configuration not set"):
+        super().__init__(message)
 
 # use pydantic to get username and password environment vairavles.
 # Can also be set with .env file
@@ -66,8 +75,16 @@ class MongoConfiguration:
 
 class SQLConnection:
     def __init__(self):
-        self.config = MongoConfiguration.load_config()
-        self.env = SQLEnvironment().dict()
+        try:
+            self.config = MongoConfiguration.load_config()
+        except KeyError:
+            raise ConfigNotSetError
+
+        try:
+            self.env = SQLEnvironment().dict()
+        except pydantic.error_wrappers.ValidationError:
+            raise EnviromentNotSetError
+
         self.config = {
             "user": self.env["sql_user"],
             "password": self.env["password"],
