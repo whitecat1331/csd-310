@@ -230,7 +230,50 @@ class PySports:
 def main():
     try:
         pysports = PySports()
-        print(pysports.get_players_teamname())
+        # try/catch block for handling potential MySQL database errors
+
+        # db = mysql.connector.connect(**config) # connect to the pysports database
+
+        # cursor = db.cursor()
+
+        # select query from the team table
+        # cursor.execute("SELECT team_id, team_name, mascot FROM team")
+
+        # get the results from the cursor object
+        # teams = cursor.fetchall()
+
+        # print()
+
+        # iterate over the teams data set and display the results
+        # for team in teams:
+        # print("  Team ID: {}\n  Team Name: {}\n  Mascot: {}\n".format(team[0], team[1], team[2]))
+
+        # print(pysports.get_teams())
+
+        # select query for the player table
+        # cursor.execute("SELECT player_id, first_name, last_name, team_id FROM player")
+
+        # get the results from the cursor object
+        # players = cursor.fetchall()
+
+        # print ("\n  -- DISPLAYING PLAYER RECORDS --")
+
+        # iterate over the players data set and display the results
+        # for player in players:
+        # print("  Player ID: {}\n  First Name: {}\n  Last Name: {}\n  Team ID: {}\n".format(player[0], player[1], player[2], player[3]))
+        # print(pysports.get_players())
+
+        # display the player and team join
+        smeagol = PlayerDocument("Smeagol", "Shire Folk")
+        gollum = PlayerDocument("Gollum", "Ring Stealer")
+
+        gandolf = TeamDocument("Team Gandolf", "White Wizzards", 1)
+        souron = TeamDocument("Team Souron", "Orcs", 2)
+
+        print(pysports.insert_player(smeagol, gandolf))
+        print(pysports.update_player_team(smeagol, gollum, souron))
+        print(pysports.delete_player(gollum))
+
         input("\n\n  Press any key to continue... ")
 
     except mysql.connector.Error as err:
