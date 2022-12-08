@@ -81,7 +81,8 @@ class SQLQueryCommands(Enum):
     except KeyError:
         raise ConfigNotSetError
 
-    show_books = sql_queries["show_books"]
+    show_books = sql_queries["SHOW_BOOKS"]
+    show_locations = sql_queries["SHOW_LOCATIONS"]
 
 
 
@@ -156,11 +157,27 @@ class BookDocument:
         self.author = author
         self.book_id = book_id
 
+    @staticmethod
+    def tuple_to_object(query_tuple):
+        (book_id, book_name, author, details) = query_tuple
+        return BookDocument(book_name, details, author, book_id)
+
+    def format(self):
+        return f"Book Name: {self.book_name}\nAuthor: {self.author}\nDetails: {self.details}\n"
+
 
 class StoreDocument:
     def __init__(self, locale, store_id=None):
         self.locale = locale
         self.store_id = store_id
+
+    @staticmethod
+    def tuple_to_object(query_tuple):
+        (store_id, locale) = query_tuple
+        return StoreDocument(locale, store_id)
+
+    def format(self):
+        return f"Locale: {self.locale}\n"
 
 
 class Whatabook(SQLInterface):
@@ -169,16 +186,30 @@ class Whatabook(SQLInterface):
 
     def show_books(self):
         query = SQLQueryCommands.show_books.value
-        print(f"the query is !!!!!{query}")
-        print(self.fetch(query))
+        table = self.fetch(query)
+        if not table:
+            raise Exception("Book table not found")
+        results = "-- DISPLAYING BOOK LISTING --\n"
+        for book in table:
+            results += f"{BookDocument.tuple_to_object(book).format()}\n"
+        return results
 
+    def show_locations(self):
+        query = SQLQueryCommands.show_locations.value
+        table = self.fetch(query)
+        if not table:
+            raise Exception("Store table not found")
+        results = "-- DISPLAYING STORE LOCATIONS --\n"
+        for store in table:
+            results += f"{StoreDocument.tuple_to_object(store).format()}\n"
+        return results
 
-# format whatabook here
 
 def main():
     try:
         whatabook = Whatabook()
-        whatabook.show_books()
+        print(whatabook.show_books())
+        print(whatabook.show_locations())
 
     except mysql.connector.Error as err:
         """handle errors"""
