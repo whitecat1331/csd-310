@@ -15,8 +15,8 @@ CREATE USER 'whatabook_user'@'localhost' IDENTIFIED WITH mysql_native_password B
 GRANT ALL PRIVILEGES ON whatabook.* TO'whatabook_user'@'localhost';
 
 -- drop contstraints if they exist
-ALTER TABLE wishlist DROP FOREIGN KEY fk_book;
-ALTER TABLE wishlist DROP FOREIGN KEY fk_user;
+alter table wishlist drop foreign key fk_book;
+alter table wishlist drop foreign key fk_user;
 
 -- drop tables if they exist
 DROP TABLE IF EXISTS store;
@@ -77,7 +77,7 @@ INSERT INTO book(book_name, author, details)
     VALUES('Exile', 'R.A.Salvatore', 'The second part of The Dark Elf Trilogy');
 
 INSERT INTO book(book_name, author, details)
-    VALUES('Sojuorn', 'R.A.Salvatore', "The third part of The Dark Elf Trilogy");
+    VALUES('Sojourn', 'R.A.Salvatore', "The third part of The Dark Elf Trilogy");
 
 INSERT INTO book(book_name, author)
     VALUES('The Fault in Our Stars', 'John Green');
@@ -115,7 +115,7 @@ INSERT INTO user(first_name, last_name)
 INSERT INTO wishlist(user_id, book_id) 
     VALUES (
         (SELECT user_id FROM user WHERE first_name = 'Rick'), 
-        (SELECT book_id FROM book WHERE book_name = 'Sojuorn')
+        (SELECT book_id FROM book WHERE book_name = 'Sojourn')
     );
 
 INSERT INTO wishlist(user_id, book_id)
@@ -127,5 +127,5 @@ INSERT INTO wishlist(user_id, book_id)
 INSERT INTO wishlist(user_id, book_id)
     VALUES (
         (SELECT user_id FROM user WHERE first_name = 'Summer'),
-        (SELECT book_id FROM book WHERE book_name = 'Mockingjay')
+        (SELECT book_id FROM book WHERE book_name = 'The Hunger Games')
     );
