@@ -3,6 +3,7 @@ import pydantic
 from pydantic import BaseSettings
 from configparser import ConfigParser
 from mysql.connector import errorcode
+from enum import Enum
 
 """
     Title: pysports_queries.py
@@ -36,13 +37,10 @@ class SQLEnvironment(BaseSettings):
     class Config:
         env_file = ".env"
 
-
-""" database config class """
-
 # Manages the connection and sql query configurations
 # The configuration file will auto-generate if it is not found
 # The default configurations should work for this project as long as the database is set up correctly
-class WhatabookConfiguration:
+class SQLConfiguration:
 
     CONNECTION_SECTION = "CONNECTION"
     SQL_QUERY_SECTION = "QUERIES"
@@ -74,11 +72,24 @@ class WhatabookConfiguration:
     def load_query_config(cls):
         return cls.load(cls.SQL_QUERY_SECTION)
 
-# Context manager that will make a connection on entry and close connection on exit using configuration file
+
+# Context manager that will make a connection to the database on entry and close the connection on exit using the configuration file
+
+class SQLQueryCommands(Enum):
+    try:
+        sql_queries = SQLConfiguration.load_query_config()
+    except KeyError:
+        raise ConfigNotSetError
+
+    show_books = sql_queries["show_books"]
+
+
+
+
 class SQLConnection:
     def __init__(self):
         try:
-            self.config = SQLConfiguration.load_config()
+            self.connection_config = SQLConfiguration.load_connection_config()
         except KeyError:
             raise ConfigNotSetError
 
@@ -90,10 +101,10 @@ class SQLConnection:
         self.config = {
             "user": self.env["sql_user"],
             "password": self.env["password"],
-            "host": self.config[SQLConfiguration.HOST],
-            "database": self.config[SQLConfiguration.DATABASE],
-            "raise_on_warnings": self.config.getboolean(
-                MongoConfiguration.RAISE_ON_WARNINGS
+            "host": self.connection_config[SQLConfiguration.HOST],
+            "database": self.connection_config[SQLConfiguration.DATABASE],
+            "raise_on_warnings": self.connection_config.getboolean(
+                SQLConfiguration.RAISE_ON_WARNINGS
             ),
         }
 
@@ -105,7 +116,11 @@ class SQLConnection:
         self.db.close()
 
 
+# Manage interfacing with the database
 class SQLInterface:
+    def __init__(self):
+        pass
+
     def fetch(self, query):
         with SQLConnection() as database_connection:
             sql_cursor = database_connection.cursor()
@@ -119,17 +134,51 @@ class SQLInterface:
             database_connection.commit()
 
 
-# declare documents for program here
+# Whatabook database documents
+class UserDocument:
+    def __init__(self, first_name, last_name, user_id=None):
+        self.first_name = first_name
+        self.last_name = last_name
+        self.user_id = user_id
+
+
+class WishlistDocument:
+    def __init__(self, user_id, book_id, wishlist_id=None):
+        self.user_id = user_id
+        self.book_id = book_id
+        self.wishlist_id = wishlist_id
+
+
+class BookDocument:
+    def __init__(self, book_name, details, author, book_id=None):
+        self.book_name = book_name
+        self.details = details
+        self.author = author
+        self.book_id = book_id
+
+
+class StoreDocument:
+    def __init__(self, locale, store_id=None):
+        self.locale = locale
+        self.store_id = store_id
 
 
 class Whatabook(SQLInterface):
-    pass
+    def __init__(self):
+        super().__init__()
+
+    def show_books(self):
+        query = SQLQueryCommands.show_books.value
+        print(f"the query is !!!!!{query}")
+        print(self.fetch(query))
+
 
 # format whatabook here
 
 def main():
     try:
-        pass
+        whatabook = Whatabook()
+        whatabook.show_books()
 
     except mysql.connector.Error as err:
         """handle errors"""
