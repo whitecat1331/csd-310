@@ -1,8 +1,9 @@
 import mysql.connector
 import pydantic
+from abc import ABC, abstractmethod
 from pydantic import BaseSettings
 from configparser import ConfigParser
-from mysql.connector import errorcode
+from mysql.connector import errorcode as connector_errors
 from enum import Enum
 
 """
@@ -73,8 +74,6 @@ class SQLConfiguration:
         return cls.load(cls.SQL_QUERY_SECTION)
 
 
-# Context manager that will make a connection to the database on entry and close the connection on exit using the configuration file
-
 class SQLQueryCommands(Enum):
     try:
         sql_queries = SQLConfiguration.load_query_config()
@@ -83,10 +82,11 @@ class SQLQueryCommands(Enum):
 
     show_books = sql_queries["SHOW_BOOKS"]
     show_locations = sql_queries["SHOW_LOCATIONS"]
+    show_user_ids = sql_queries["SHOW_USER_IDS"]
+    show_wishlist = sql_queries["SHOW_WISHLIST"]
 
 
-
-
+# Context manager that will make a connection to the database on entry and close the connection on exit using the configuration file
 class SQLConnection:
     def __init__(self):
         try:
@@ -121,6 +121,7 @@ class SQLConnection:
 class SQLInterface:
     def __init__(self):
         pass
+    from abc import ABC, abstractmethod
 
     def fetch(self, query):
         with SQLConnection() as database_connection:
@@ -136,80 +137,142 @@ class SQLInterface:
 
 
 # Whatabook database documents
-class UserDocument:
+class Document(ABC):
+    def __init__(self, banner, *values):
+        self.format_string = banner.format(*values)
+
+    @staticmethod
+    @abstractmethod
+    def to_object(query_tuple):
+        pass
+
+    def format(self):
+        return self.format_string
+
+
+class User(Document):
+    BANNER = "First Name: {}\nLast Name: {}\n"
+
     def __init__(self, first_name, last_name, user_id=None):
         self.first_name = first_name
         self.last_name = last_name
         self.user_id = user_id
-
-
-class WishlistDocument:
-    def __init__(self, user_id, book_id, wishlist_id=None):
-        self.user_id = user_id
-        self.book_id = book_id
-        self.wishlist_id = wishlist_id
-
-
-class BookDocument:
-    def __init__(self, book_name, details, author, book_id=None):
-        self.book_name = book_name
-        self.details = details
-        self.author = author
-        self.book_id = book_id
+        super().__init__(self.BANNER, self.first_name, self.last_name)
 
     @staticmethod
-    def tuple_to_object(query_tuple):
-        (book_id, book_name, author, details) = query_tuple
-        return BookDocument(book_name, details, author, book_id)
+    def to_object(query_tuple):
+        (user_id, first_name, last_name) = query_tuple
+        return User(first_name, last_name, user_id)
 
     def format(self):
-        return f"Book Name: {self.book_name}\nAuthor: {self.author}\nDetails: {self.details}\n"
+        return super().format()
 
 
-class StoreDocument:
+class Book(Document):
+    BANNER = "Book Name: {}\nAuthor: {}\nDetails: {}\n"
+
+    def __init__(self, book_name, author, details, book_id=None):
+        self.book_name = book_name
+        self.author = author
+        self.details = details
+        self.book_id = book_id
+        super().__init__(self.BANNER, self.book_name, self.author, self.details)
+
+    @staticmethod
+    def to_object(query_tuple):
+        (book_id, book_name, author, details) = query_tuple
+        return Book(book_name, author, details, book_id)
+
+    def format(self):
+        return super().format()
+
+
+class Wishlist(Document):
+    BANNER = "Book Name: {}\nAuthor: {}\n"
+
+    def __init__(self, User, Book, wishlist_id=None):
+        self.user_id = User.user_id
+        self.book_id = Book.book_id
+        self.wishlist_id = wishlist_id
+        super().__init__(self.BANNER, Book.book_name, Book.author)
+
+    @staticmethod
+    def to_object(query_tuple):
+        (book_id, book_name, author, details) = query_tuple
+        return Book(book_name, details, author, book_id)
+
+    def format(self):
+        return super().format()
+
+
+class Store(Document):
+    BANNER = "Locale: {}\n"
+
     def __init__(self, locale, store_id=None):
         self.locale = locale
         self.store_id = store_id
+        super().__init__(self.BANNER, self.locale)
 
     @staticmethod
-    def tuple_to_object(query_tuple):
+    def to_object(query_tuple):
         (store_id, locale) = query_tuple
-        return StoreDocument(locale, store_id)
+        return Store(locale, store_id)
 
     def format(self):
-        return f"Locale: {self.locale}\n"
+        return super().format()
 
 
 class Whatabook(SQLInterface):
     def __init__(self):
         super().__init__()
 
-    def show_books(self):
+    def get_books(self):
         query = SQLQueryCommands.show_books.value
         table = self.fetch(query)
         if not table:
             raise Exception("Book table not found")
         results = "-- DISPLAYING BOOK LISTING --\n"
         for book in table:
-            results += f"{BookDocument.tuple_to_object(book).format()}\n"
+            results += f"{Book.to_object(book).format()}\n"
         return results
 
-    def show_locations(self):
+    def get_locations(self):
         query = SQLQueryCommands.show_locations.value
         table = self.fetch(query)
         if not table:
             raise Exception("Store table not found")
         results = "-- DISPLAYING STORE LOCATIONS --\n"
         for store in table:
-            results += f"{StoreDocument.tuple_to_object(store).format()}\n"
+            results += f"{Store.to_object(store).format()}\n"
         return results
+
+    def get_total_users(self):
+        query = SQLQueryCommands.show_user_ids.value
+        table = self.fetch(query)
+        if not table:
+            raise Exception("User table not found")
+        return len(table)
+
+    def valiate_user_id(self, user_id):
+        total_users = self.get_total_users()
+        if not 0 < user_id < total_users:
+            return False
+        return True
+
+    def show_wishlist(self):
+        query = SQLQueryCommands.show_wishlist.value
+        return query.format("does this work?")
 
 
 def main():
     try:
         whatabook = Whatabook()
-        print(whatabook.show_books())
-        print(whatabook.show_locations())
+        print(whatabook.get_books())
+        print(whatabook.get_locations())
+        print(whatabook.valiate_user_id(1))
+        print(whatabook.valiate_user_id(10))
+        print(whatabook.show_wishlist())
+
 
     except mysql.connector.Error as err:
         """handle errors"""
