@@ -26,6 +26,13 @@ class ConfigNotSetError(Exception):
         super().__init__(message)
 
 
+class TableNotFoundError(Exception):
+    def __init__(self, table_name):
+        self.table_name = table_name
+        message = f"{self.table_name} table not found"
+        super().__init__(message)
+
+
 # Manages environment vairavles
 # use pydantic to get username and password environment vairavles.
 # using environment vairables adds an extra layer of security
@@ -37,6 +44,7 @@ class SQLEnvironment(BaseSettings):
 
     class Config:
         env_file = ".env"
+
 
 # Manages the connection and sql query configurations
 # The configuration file will auto-generate if it is not found
@@ -59,7 +67,7 @@ class SQLConfiguration:
             with open(".config", "w") as config_file:
                 config_file.write(config_content)
 
-    @classmethod 
+    @classmethod
     def load(cls, section):
         config = ConfigParser()
         config.read(cls.FILE)
@@ -69,7 +77,7 @@ class SQLConfiguration:
     def load_connection_config(cls):
         return cls.load(cls.CONNECTION_SECTION)
 
-    @classmethod 
+    @classmethod
     def load_query_config(cls):
         return cls.load(cls.SQL_QUERY_SECTION)
 
@@ -83,7 +91,7 @@ class SQLQueryCommands(Enum):
     show_books = sql_queries["SHOW_BOOKS"]
     show_locations = sql_queries["SHOW_LOCATIONS"]
     show_user_ids = sql_queries["SHOW_USER_IDS"]
-    show_wishlist = sql_queries["SHOW_WISHLIST"]
+    show_wishlist_book = sql_queries["SHOW_WISHLIST_BOOK"]
 
 
 # Context manager that will make a connection to the database on entry and close the connection on exit using the configuration file
@@ -121,6 +129,7 @@ class SQLConnection:
 class SQLInterface:
     def __init__(self):
         pass
+
     from abc import ABC, abstractmethod
 
     def fetch(self, query):
@@ -170,6 +179,7 @@ class User(Document):
 
 class Book(Document):
     BANNER = "Book Name: {}\nAuthor: {}\nDetails: {}\n"
+    WISHLIST_BOOK_BANNER = "Book Name: {}\nAuthor: {}\n"
 
     def __init__(self, book_name, author, details, book_id=None):
         self.book_name = book_name
@@ -188,21 +198,27 @@ class Book(Document):
 
 
 class Wishlist(Document):
-    BANNER = "Book Name: {}\nAuthor: {}\n"
+    BANNER = "User ID: {}\nBook ID: {}\n"
 
-    def __init__(self, User, Book, wishlist_id=None):
-        self.user_id = User.user_id
-        self.book_id = Book.book_id
+    def __init__(self, user_id, book_id, wishlist_id=None):
+        self.user_id = user_id
+        self.book_id = book_id
         self.wishlist_id = wishlist_id
-        super().__init__(self.BANNER, Book.book_name, Book.author)
+        super().__init__(self.BANNER, self.user_id, self.book_id)
 
     @staticmethod
     def to_object(query_tuple):
-        (book_id, book_name, author, details) = query_tuple
-        return Book(book_name, details, author, book_id)
+        (user_id, book_id, wishlist_id) = query_tuple
+        return Wishlist(user_id, book_id, wishlist_id)
 
     def format(self):
         return super().format()
+
+    @staticmethod
+    def format_book(query_tuple):
+        (_, _, _, _, book_name, author) = query_tuple
+        book_banner = Book.WISHLIST_BOOK_BANNER
+        return book_banner.format(book_name, author)
 
 
 class Store(Document):
@@ -230,7 +246,7 @@ class Whatabook(SQLInterface):
         query = SQLQueryCommands.show_books.value
         table = self.fetch(query)
         if not table:
-            raise Exception("Book table not found")
+            raise TableNotFoundError("book")
         results = "-- DISPLAYING BOOK LISTING --\n"
         for book in table:
             results += f"{Book.to_object(book).format()}\n"
@@ -240,7 +256,7 @@ class Whatabook(SQLInterface):
         query = SQLQueryCommands.show_locations.value
         table = self.fetch(query)
         if not table:
-            raise Exception("Store table not found")
+            raise TableNotFoundError("store")
         results = "-- DISPLAYING STORE LOCATIONS --\n"
         for store in table:
             results += f"{Store.to_object(store).format()}\n"
@@ -250,7 +266,7 @@ class Whatabook(SQLInterface):
         query = SQLQueryCommands.show_user_ids.value
         table = self.fetch(query)
         if not table:
-            raise Exception("User table not found")
+            raise TableNotFoundError("user")
         return len(table)
 
     def valiate_user_id(self, user_id):
@@ -259,10 +275,45 @@ class Whatabook(SQLInterface):
             return False
         return True
 
-    def show_wishlist(self):
-        query = SQLQueryCommands.show_wishlist.value
-        return query.format("does this work?")
+    def show_wishlist_book(self, user_id):
+        query = SQLQueryCommands.show_wishlist_book.value.format(user_id)
+        table = self.fetch(query)
+        if not table:
+            raise TableNotFoundError("wishlist")
+        results = "-- DISPLAYING WISHLIST ITEMS --\n"
+        for book in table:
+            results += Wishlist.format_book(book)
+        return results
 
+
+class WhatabookMenu:
+    def __init__(self):
+        pass
+
+    def show_menu():
+        print("-- Main Menu --\n")
+
+        print("1. View Books\n2. View Store Locations\n3. My Account\n4. Exit Program\n")
+
+        try:
+            choice = int(input('      <Example enter: 1 for book listing>: '))
+            return choice
+        except ValueError:
+            print("\n  Invalid number, program terminated...\n")
+            return None
+
+    def show_account_menu(self):
+        try:
+            print("-- Customer Menu --\n")
+            print("1. Wishlist\n2. Add Book\n3. Main Menu\n")
+            account_option = int(input("<Example enter: 1 for wishlist>: "))
+            return account_option
+        except ValueError:
+            return None
+
+
+
+        
 
 def main():
     try:
@@ -271,8 +322,7 @@ def main():
         print(whatabook.get_locations())
         print(whatabook.valiate_user_id(1))
         print(whatabook.valiate_user_id(10))
-        print(whatabook.show_wishlist())
-
+        print(whatabook.show_wishlist_book(1))
 
     except mysql.connector.Error as err:
         """handle errors"""
