@@ -45,7 +45,7 @@ class SQLConfiguration:
 
     CONNECTION_SECTION = "CONNECTION"
     SQL_QUERY_SECTION = "QUERIES"
-    FILE = ".config"
+    FILE = "config.ini"
 
     HOST = "HOST"
     DATABASE = "DATABASE"
