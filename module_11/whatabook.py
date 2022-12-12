@@ -52,7 +52,8 @@ class SQLEnvironment(BaseSettings):
 class SQLConfiguration:
 
     CONNECTION_SECTION = "CONNECTION"
-    SQL_QUERY_SECTION = "QUERIES"
+    QUERY_SECTION = "QUERIES"
+    BANNER_SECTION = "BANNERS"
     FILE = "config.ini"
 
     HOST = "HOST"
@@ -79,7 +80,11 @@ class SQLConfiguration:
 
     @classmethod
     def load_query_config(cls):
-        return cls.load(cls.SQL_QUERY_SECTION)
+        return cls.load(cls.QUERY_SECTION)
+
+    @classmethod
+    def load_banner_config(cls):
+        return cls.load(cls.BANNER_SECTION)
 
 
 class SQLQueryCommands(Enum):
@@ -88,10 +93,11 @@ class SQLQueryCommands(Enum):
     except KeyError:
         raise ConfigNotSetError
 
-    show_books = sql_queries["SHOW_BOOKS"]
-    show_locations = sql_queries["SHOW_LOCATIONS"]
-    show_user_ids = sql_queries["SHOW_USER_IDS"]
-    show_wishlist_book = sql_queries["SHOW_WISHLIST_BOOK"]
+    get_books = eval(sql_queries["GET_BOOKS"])
+    get_locations = eval(sql_queries["GET_LOCATIONS"])
+    get_total_users = eval(sql_queries["GET_TOTAL_USERS"])
+    get_wishlist_books = eval(sql_queries["GET_WISHLIST_BOOKS"])
+    get_books_to_add = eval(sql_queries["GET_BOOKS_TO_ADD"])
 
 
 # Context manager that will make a connection to the database on entry and close the connection on exit using the configuration file
@@ -159,14 +165,24 @@ class Document(ABC):
         return self.format_string
 
 
-class User(Document):
-    BANNER = "First Name: {}\nLast Name: {}\n"
+class WhatabookBanners(Enum):
+    try:
+        sql_banners = SQLConfiguration.load_banner_config()
+    except KeyError:
+        raise ConfigNotSetError
 
-    def __init__(self, first_name, last_name, user_id=None):
+    get_books = eval(sql_banners["GET_BOOKS"])
+    get_locations = eval(sql_banners["GET_LOCATIONS"])
+    get_wishlist_books = eval(sql_banners["GET_WISHLIST_BOOKS"])
+    get_books_to_add = eval(sql_banners["GET_BOOKS_TO_ADD"])
+
+
+class User(Document):
+    def __init__(self, first_name, last_name, user_id=None, banner=""):
         self.first_name = first_name
         self.last_name = last_name
         self.user_id = user_id
-        super().__init__(self.BANNER, self.first_name, self.last_name)
+        super().__init__(banner, self.first_name, self.last_name)
 
     @staticmethod
     def to_object(query_tuple):
@@ -178,15 +194,15 @@ class User(Document):
 
 
 class Book(Document):
-    BANNER = "Book Name: {}\nAuthor: {}\nDetails: {}\n"
-    WISHLIST_BOOK_BANNER = "Book Name: {}\nAuthor: {}\n"
+
+    BANNER = WhatabookBanners.get_books.value
 
     def __init__(self, book_name, author, details, book_id=None):
         self.book_name = book_name
         self.author = author
         self.details = details
         self.book_id = book_id
-        super().__init__(self.BANNER, self.book_name, self.author, self.details)
+        super().__init__(Book.BANNER, self.book_name, self.author, self.details)
 
     @staticmethod
     def to_object(query_tuple):
@@ -198,13 +214,13 @@ class Book(Document):
 
 
 class Wishlist(Document):
-    BANNER = "User ID: {}\nBook ID: {}\n"
+    BANNER = WhatabookBanners.get_wishlist_books.value
 
     def __init__(self, user_id, book_id, wishlist_id=None):
         self.user_id = user_id
         self.book_id = book_id
         self.wishlist_id = wishlist_id
-        super().__init__(self.BANNER, self.user_id, self.book_id)
+        super().__init__(Wishlist.BANNER, self.user_id, self.book_id)
 
     @staticmethod
     def to_object(query_tuple):
@@ -217,17 +233,16 @@ class Wishlist(Document):
     @staticmethod
     def format_book(query_tuple):
         (_, _, _, _, book_name, author) = query_tuple
-        book_banner = Book.WISHLIST_BOOK_BANNER
-        return book_banner.format(book_name, author)
+        return Wishlist.BANNER.format(book_name, author)
 
 
 class Store(Document):
-    BANNER = "Locale: {}\n"
+    BANNER = WhatabookBanners.get_locations.value
 
     def __init__(self, locale, store_id=None):
         self.locale = locale
         self.store_id = store_id
-        super().__init__(self.BANNER, self.locale)
+        super().__init__(Store.BANNER, self.locale)
 
     @staticmethod
     def to_object(query_tuple):
@@ -243,7 +258,7 @@ class Whatabook(SQLInterface):
         super().__init__()
 
     def get_books(self):
-        query = SQLQueryCommands.show_books.value
+        query = SQLQueryCommands.get_books.value
         table = self.fetch(query)
         if not table:
             raise TableNotFoundError("book")
@@ -253,7 +268,7 @@ class Whatabook(SQLInterface):
         return results
 
     def get_locations(self):
-        query = SQLQueryCommands.show_locations.value
+        query = SQLQueryCommands.get_locations.value
         table = self.fetch(query)
         if not table:
             raise TableNotFoundError("store")
@@ -263,7 +278,7 @@ class Whatabook(SQLInterface):
         return results
 
     def get_total_users(self):
-        query = SQLQueryCommands.show_user_ids.value
+        query = SQLQueryCommands.get_total_users.value
         table = self.fetch(query)
         if not table:
             raise TableNotFoundError("user")
@@ -275,8 +290,8 @@ class Whatabook(SQLInterface):
             return False
         return True
 
-    def show_wishlist_book(self, user_id):
-        query = SQLQueryCommands.show_wishlist_book.value.format(user_id)
+    def get_wishlist_books(self, user_id):
+        query = SQLQueryCommands.get_wishlist_books.value.format(user_id)
         table = self.fetch(query)
         if not table:
             raise TableNotFoundError("wishlist")
@@ -284,6 +299,9 @@ class Whatabook(SQLInterface):
         for book in table:
             results += Wishlist.format_book(book)
         return results
+
+    def get_books_to_add(self, user_id):
+        query = SQLQueryCommands.get_books_to_add.value.format(user_id)
 
 
 class WhatabookMenu:
@@ -293,13 +311,14 @@ class WhatabookMenu:
     def show_menu():
         print("-- Main Menu --\n")
 
-        print("1. View Books\n2. View Store Locations\n3. My Account\n4. Exit Program\n")
+        print(
+            "1. View Books\n2. View Store Locations\n3. My Account\n4. Exit Program\n"
+        )
 
         try:
-            choice = int(input('      <Example enter: 1 for book listing>: '))
+            choice = int(input("      <Example enter: 1 for book listing>: "))
             return choice
         except ValueError:
-            print("\n  Invalid number, program terminated...\n")
             return None
 
     def show_account_menu(self):
@@ -312,17 +331,16 @@ class WhatabookMenu:
             return None
 
 
-
-        
-
 def main():
     try:
         whatabook = Whatabook()
         print(whatabook.get_books())
         print(whatabook.get_locations())
         print(whatabook.valiate_user_id(1))
+        print(whatabook.get_total_users())
         print(whatabook.valiate_user_id(10))
-        print(whatabook.show_wishlist_book(1))
+        print(whatabook.get_wishlist_books(1))
+        print(whatabook.get_books_to_add(1))
 
     except mysql.connector.Error as err:
         """handle errors"""
