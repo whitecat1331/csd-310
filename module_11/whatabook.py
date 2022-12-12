@@ -162,7 +162,7 @@ class Document(ABC):
         pass
 
     def format(self):
-        return self.format_string
+        return self.format_string + '\n'
 
 
 class WhatabookBanners(Enum):
@@ -195,32 +195,39 @@ class User(Document):
 
 class Book(Document):
 
-    BANNER = WhatabookBanners.get_books.value
+    # set raw strings for book to be formatted
+    GET_BOOKS = WhatabookBanners.get_books.value
+    GET_WISHLIST_BOOKS = WhatabookBanners.get_wishlist_books.value
+    BOOKS_TO_ADD = WhatabookBanners.get_books_to_add.value
 
-    def __init__(self, book_name, author, details, book_id=None):
+    def __init__(self, book_name, author, details, book_id=None, banner=GET_BOOKS):
         self.book_name = book_name
         self.author = author
         self.details = details
         self.book_id = book_id
-        super().__init__(Book.BANNER, self.book_name, self.author, self.details)
+        super().__init__(banner, self.book_name, self.author, self.details)
 
     @staticmethod
     def to_object(query_tuple):
         (book_id, book_name, author, details) = query_tuple
         return Book(book_name, author, details, book_id)
 
+    @staticmethod
+    def wishlist_book(query_tuple):
+        (_, _, _, book_id, book_name, author, details) = query_tuple
+        return Book(book_name, author, details, book_id, Book.GET_WISHLIST_BOOKS)
+
     def format(self):
         return super().format()
 
 
 class Wishlist(Document):
-    BANNER = WhatabookBanners.get_wishlist_books.value
 
-    def __init__(self, user_id, book_id, wishlist_id=None):
+    def __init__(self, user_id, book_id, wishlist_id=None, banner=""):
         self.user_id = user_id
         self.book_id = book_id
         self.wishlist_id = wishlist_id
-        super().__init__(Wishlist.BANNER, self.user_id, self.book_id)
+        super().__init__(banner, self.user_id, self.book_id)
 
     @staticmethod
     def to_object(query_tuple):
@@ -230,19 +237,22 @@ class Wishlist(Document):
     def format(self):
         return super().format()
 
-    @staticmethod
-    def format_book(query_tuple):
-        (_, _, _, _, book_name, author) = query_tuple
-        return Wishlist.BANNER.format(book_name, author)
+    # @staticmethod
+    # def wishlist_book(query_tuple):
+    #     (_, _, _, book_id, book_name, author, details) = query_tuple
+    #     return Book(book_name, author, details, book_id, Book.GET_WISHLIST_BOOKS)
+
+    # def books_to_add(query_tuple):
+    #     return Book.to_object(query_tuple)
 
 
 class Store(Document):
     BANNER = WhatabookBanners.get_locations.value
 
-    def __init__(self, locale, store_id=None):
+    def __init__(self, locale, store_id=None, banner=BANNER):
         self.locale = locale
         self.store_id = store_id
-        super().__init__(Store.BANNER, self.locale)
+        super().__init__(banner, self.locale)
 
     @staticmethod
     def to_object(query_tuple):
@@ -264,7 +274,7 @@ class Whatabook(SQLInterface):
             raise TableNotFoundError("book")
         results = "-- DISPLAYING BOOK LISTING --\n"
         for book in table:
-            results += f"{Book.to_object(book).format()}\n"
+            results += Book.to_object(book).format()
         return results
 
     def get_locations(self):
@@ -274,7 +284,7 @@ class Whatabook(SQLInterface):
             raise TableNotFoundError("store")
         results = "-- DISPLAYING STORE LOCATIONS --\n"
         for store in table:
-            results += f"{Store.to_object(store).format()}\n"
+            results += Store.to_object(store).format()
         return results
 
     def get_total_users(self):
@@ -297,11 +307,19 @@ class Whatabook(SQLInterface):
             raise TableNotFoundError("wishlist")
         results = "-- DISPLAYING WISHLIST ITEMS --\n"
         for book in table:
-            results += Wishlist.format_book(book)
+            results += Book.wishlist_book(book).format()
         return results
 
     def get_books_to_add(self, user_id):
         query = SQLQueryCommands.get_books_to_add.value.format(user_id)
+        table = self.fetch(query)
+        if not table:
+            raise TableNotFoundError("book")
+        results = "-- DISPLAYING AVAILABLE BOOKS --\n"
+        for book in table:
+            results += Book.to_object(book).format()
+        return results
+            
 
 
 class WhatabookMenu:
