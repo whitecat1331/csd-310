@@ -3,7 +3,6 @@ import pydantic
 from abc import ABC, abstractmethod
 from pydantic import BaseSettings
 from configparser import ConfigParser
-from mysql.connector import errorcode as connector_errors
 from enum import Enum
 
 """
@@ -30,6 +29,15 @@ class TableNotFoundError(Exception):
     def __init__(self, table_name):
         self.table_name = table_name
         message = f"{self.table_name} table not found"
+        super().__init__(message)
+
+
+class IllegalArgumentError(ValueError):
+    def __init__(self, message="Invalid Choice for Menu"):
+        super().__init__(message)
+
+class InvalidUserError(Exception):
+    def __init__(self, message="Invalid User"):
         super().__init__(message)
 
 
@@ -98,6 +106,7 @@ class SQLQueryCommands(Enum):
     get_total_users = eval(sql_queries["GET_TOTAL_USERS"])
     get_wishlist_books = eval(sql_queries["GET_WISHLIST_BOOKS"])
     get_books_to_add = eval(sql_queries["GET_BOOKS_TO_ADD"])
+    add_book_to_wishlist = eval(sql_queries["ADD_BOOK_TO_WISHLIST"])
 
 
 # Context manager that will make a connection to the database on entry and close the connection on exit using the configuration file
@@ -150,6 +159,12 @@ class SQLInterface:
             sql_cursor.execute(query, data)
             database_connection.commit()
 
+    def insert(self, query):
+        with SQLConnection() as database_connection:
+            sql_cursor = database_connection.cursor()
+            sql_cursor.execute(query)
+            database_connection.commit()
+
 
 # Whatabook database documents
 class Document(ABC):
@@ -158,11 +173,11 @@ class Document(ABC):
 
     @staticmethod
     @abstractmethod
-    def to_object(query_tuple):
+    def to_object(query_table):
         pass
 
     def format(self):
-        return self.format_string + '\n'
+        return self.format_string + "\n"
 
 
 class WhatabookBanners(Enum):
@@ -185,8 +200,8 @@ class User(Document):
         super().__init__(banner, self.first_name, self.last_name)
 
     @staticmethod
-    def to_object(query_tuple):
-        (user_id, first_name, last_name) = query_tuple
+    def to_object(query_table):
+        (user_id, first_name, last_name) = query_table
         return User(first_name, last_name, user_id)
 
     def format(self):
@@ -208,21 +223,25 @@ class Book(Document):
         super().__init__(banner, self.book_name, self.author, self.details)
 
     @staticmethod
-    def to_object(query_tuple):
-        (book_id, book_name, author, details) = query_tuple
+    def to_object(query_table):
+        (book_id, book_name, author, details) = query_table
         return Book(book_name, author, details, book_id)
 
     @staticmethod
-    def wishlist_book(query_tuple):
-        (_, _, _, book_id, book_name, author, details) = query_tuple
+    def wishlist_book(query_table):
+        (_, _, _, book_id, book_name, author, details) = query_table
         return Book(book_name, author, details, book_id, Book.GET_WISHLIST_BOOKS)
+
+    @staticmethod
+    def available_books(query_table):
+        (book_id, book_name, author, details) = query_table
+        return Book(book_name, author, details, book_id, Book.BOOKS_TO_ADD)
 
     def format(self):
         return super().format()
 
 
 class Wishlist(Document):
-
     def __init__(self, user_id, book_id, wishlist_id=None, banner=""):
         self.user_id = user_id
         self.book_id = book_id
@@ -230,20 +249,12 @@ class Wishlist(Document):
         super().__init__(banner, self.user_id, self.book_id)
 
     @staticmethod
-    def to_object(query_tuple):
-        (user_id, book_id, wishlist_id) = query_tuple
+    def to_object(query_table):
+        (user_id, book_id, wishlist_id) = query_table
         return Wishlist(user_id, book_id, wishlist_id)
 
     def format(self):
         return super().format()
-
-    # @staticmethod
-    # def wishlist_book(query_tuple):
-    #     (_, _, _, book_id, book_name, author, details) = query_tuple
-    #     return Book(book_name, author, details, book_id, Book.GET_WISHLIST_BOOKS)
-
-    # def books_to_add(query_tuple):
-    #     return Book.to_object(query_tuple)
 
 
 class Store(Document):
@@ -255,8 +266,8 @@ class Store(Document):
         super().__init__(banner, self.locale)
 
     @staticmethod
-    def to_object(query_tuple):
-        (store_id, locale) = query_tuple
+    def to_object(query_table):
+        (store_id, locale) = query_table
         return Store(locale, store_id)
 
     def format(self):
@@ -294,11 +305,9 @@ class Whatabook(SQLInterface):
             raise TableNotFoundError("user")
         return len(table)
 
-    def valiate_user_id(self, user_id):
+    def validate_user_id(self, user_id):
         total_users = self.get_total_users()
-        if not 0 < user_id < total_users:
-            return False
-        return True
+        return True if 1 < user_id < total_users else False
 
     def get_wishlist_books(self, user_id):
         query = SQLQueryCommands.get_wishlist_books.value.format(user_id)
@@ -317,16 +326,22 @@ class Whatabook(SQLInterface):
             raise TableNotFoundError("book")
         results = "-- DISPLAYING AVAILABLE BOOKS --\n"
         for book in table:
-            results += Book.to_object(book).format()
+            results += Book.available_books(book).format()
         return results
-            
+
+    def add_book_to_wishlist(self, user_id, book_id):
+        query = SQLQueryCommands.add_book_to_wishlist.value.format(user_id, book_id)
+        print(query)
+        self.insert(query)
 
 
-class WhatabookMenu:
+class WhatabookMenu(Whatabook):
     def __init__(self):
-        pass
+        self.max_menu_choices = 4
+        self.max_account_menu_choices = 3
+        super().__init__()
 
-    def show_menu():
+    def get_menu_choice(self):
         print("-- Main Menu --\n")
 
         print(
@@ -334,44 +349,100 @@ class WhatabookMenu:
         )
 
         try:
-            choice = int(input("      <Example enter: 1 for book listing>: "))
+            choice = int(input("<Example enter: 1 for book listing>: "))
+            if not 1 <= choice <= self.max_menu_choices:
+                raise IllegalArgumentError
             return choice
+
+        except IllegalArgumentError:
+            return None
+
         except ValueError:
             return None
 
-    def show_account_menu(self):
+    def get_account_menu_choice(self):
         try:
             print("-- Customer Menu --\n")
             print("1. Wishlist\n2. Add Book\n3. Main Menu\n")
             account_option = int(input("<Example enter: 1 for wishlist>: "))
+            if not 1 <= account_option <= self.max_account_menu_choices:
+                raise IllegalArgumentError
             return account_option
+
+        except IllegalArgumentError:
+            return None
+
         except ValueError:
             return None
 
+    def add_book_menu(self, user_id):
+        try:
+            book_id = int(input("Enter Book ID: "))
+            self.add_book_to_wishlist(user_id, book_id)
+
+        except ValueError:
+            print("Invalid Book ID")
+
+        finally:
+            print("Book added successfully...")
+
+    def my_account(self, user_id):
+        # validate user ID
+        try:
+            if not self.validate_user_id(user_id):
+                raise InvalidUserError
+        except InvalidUserError:
+            print("Invalid user id, try again...")
+            raise
+
+        account_loop = True
+        while account_loop:
+            account_menu_choice = self.get_account_menu_choice()
+            if not account_menu_choice:
+                print("Invalid choice, try again...")
+
+            # finish each match case
+            match account_menu_choice:
+                case 1:
+                    print(self.get_wishlist_books(user_id))
+                    self.add_book_menu(user_id)
+
+                case 2:
+                    print(self.get_books_to_add(user_id))
+
+                case 3:
+                    account_loop = False
+
 
 def main():
-    try:
-        whatabook = Whatabook()
-        print(whatabook.get_books())
-        print(whatabook.get_locations())
-        print(whatabook.valiate_user_id(1))
-        print(whatabook.get_total_users())
-        print(whatabook.valiate_user_id(10))
-        print(whatabook.get_wishlist_books(1))
-        print(whatabook.get_books_to_add(1))
+    whatabookmenu = WhatabookMenu()
+    main_loop = True
+    while main_loop:
+        menu_choice = whatabookmenu.get_menu_choice()
+        if not menu_choice:
+            print("Invalid choice, try again...")
 
-    except mysql.connector.Error as err:
-        """handle errors"""
+        match menu_choice:
+            case 1:
+                print(whatabookmenu.get_books())
 
-        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-            print("  The supplied username or password are invalid")
+            case 2:
+                print(whatabookmenu.get_locations())
 
-        elif err.errno == errorcode.ER_BAD_DB_ERROR:
-            print("  The specified database does not exist")
+            case 3:
+                try:
+                    user_id = int(input("Enter User ID: "))
+                    whatabookmenu.my_account(user_id)
 
-        else:
-            print(err)
-        raise
+                except ValueError:
+                    print("Invalid user id, try again...")
+
+                except Exception as e:
+                    print(f"Error {e}: There was an issue logging in, try again...")
+
+            case 4:
+                main_loop = False
+    print("Exiting Program...")
 
 
 if __name__ == "__main__":
