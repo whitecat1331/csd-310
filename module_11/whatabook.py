@@ -36,6 +36,7 @@ class IllegalArgumentError(ValueError):
     def __init__(self, message="Invalid Choice for Menu"):
         super().__init__(message)
 
+
 class InvalidUserError(Exception):
     def __init__(self, message="Invalid User"):
         super().__init__(message)
@@ -69,7 +70,7 @@ class SQLConfiguration:
     RAISE_ON_WARNINGS = "RAISE_ON_WARNINGS"
 
     @classmethod
-    def create_config(cls, config_path):
+    def create_config(cls):
         with open("config.txt") as config_handle:
             config_content = config_handle.read()
 
@@ -220,7 +221,7 @@ class Book(Document):
         self.author = author
         self.details = details
         self.book_id = book_id
-        super().__init__(banner, self.book_name, self.author, self.details)
+        super().__init__(self.book_name, self.author, self.details, banner)
 
     @staticmethod
     def to_object(query_table):
@@ -307,7 +308,7 @@ class Whatabook(SQLInterface):
 
     def validate_user_id(self, user_id):
         total_users = self.get_total_users()
-        return True if 1 < user_id < total_users else False
+        return True if 1 <= user_id <= total_users else False
 
     def get_wishlist_books(self, user_id):
         query = SQLQueryCommands.get_wishlist_books.value.format(user_id)
@@ -331,7 +332,6 @@ class Whatabook(SQLInterface):
 
     def add_book_to_wishlist(self, user_id, book_id):
         query = SQLQueryCommands.add_book_to_wishlist.value.format(user_id, book_id)
-        print(query)
         self.insert(query)
 
 
@@ -379,12 +379,15 @@ class WhatabookMenu(Whatabook):
         try:
             book_id = int(input("Enter Book ID: "))
             self.add_book_to_wishlist(user_id, book_id)
+            return True
 
         except ValueError:
             print("Invalid Book ID")
+            return False
 
-        finally:
-            print("Book added successfully...")
+        except Exception:
+            print("Unable to add book to wishlist, try again...")
+            return False
 
     def my_account(self, user_id):
         # validate user ID
@@ -400,49 +403,56 @@ class WhatabookMenu(Whatabook):
             account_menu_choice = self.get_account_menu_choice()
             if not account_menu_choice:
                 print("Invalid choice, try again...")
+                account_menu_choice = None
 
             # finish each match case
             match account_menu_choice:
                 case 1:
                     print(self.get_wishlist_books(user_id))
-                    self.add_book_menu(user_id)
 
                 case 2:
                     print(self.get_books_to_add(user_id))
+                    print("Successful" if self.add_book_menu(user_id) else "Unable to add book, try again...")
 
                 case 3:
                     account_loop = False
 
+    def main_menu(self):
+        main_loop = True
+        while main_loop:
+            menu_choice = self.get_menu_choice()
+            if not menu_choice:
+                print("Invalid choice, try again...")
+
+            match menu_choice:
+                case 1:
+                    print(self.get_books())
+
+                case 2:
+                    print(self.get_locations())
+
+                case 3:
+                    try:
+                        user_id = int(input("Enter User ID: "))
+                        self.my_account(user_id)
+
+                    except ValueError:
+                        print("Invalid user id, try again...")
+
+                    except InvalidUserError:
+                        print("Invalid user id, try again...")
+
+                    except Exception as e:
+                        print(f"Error {e}: There was an issue logging in, try again...")
+
+                case 4:
+                    main_loop = False
+        print("Exiting Program...")
+
 
 def main():
     whatabookmenu = WhatabookMenu()
-    main_loop = True
-    while main_loop:
-        menu_choice = whatabookmenu.get_menu_choice()
-        if not menu_choice:
-            print("Invalid choice, try again...")
-
-        match menu_choice:
-            case 1:
-                print(whatabookmenu.get_books())
-
-            case 2:
-                print(whatabookmenu.get_locations())
-
-            case 3:
-                try:
-                    user_id = int(input("Enter User ID: "))
-                    whatabookmenu.my_account(user_id)
-
-                except ValueError:
-                    print("Invalid user id, try again...")
-
-                except Exception as e:
-                    print(f"Error {e}: There was an issue logging in, try again...")
-
-            case 4:
-                main_loop = False
-    print("Exiting Program...")
+    whatabookmenu.main_menu()
 
 
 if __name__ == "__main__":
