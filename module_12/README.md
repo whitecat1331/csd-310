@@ -53,7 +53,7 @@ Next, there are unit test provided for the Whatabook and Whatabookmenu classes. 
 Debug Command:
 python -m unittest -v test_whatabook.py
 or 
-pyhton -m unittest -v test_whatabookmenu.py
+python -m unittest -v test_whatabookmenu.py
 
 Developer Notes:
 Due to time constraints, documentation and testing for this program is not as thorough.
